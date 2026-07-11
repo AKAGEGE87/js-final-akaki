@@ -585,6 +585,45 @@ p { line-height: 1.6; }
   margin-bottom: 0.1rem;
 }
 
+/* Nav Logout Avatar styles (bonus) */
+.nav-logout-avatar {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+  outline: none;
+}
+
+.nav-logout-avatar:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.4); /* red highlight on hover to indicate logout */
+}
+
+.nav-avatar-initials {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.nav-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 /* ── Main Content ── */
 .main-content {
   margin-left: var(--sidebar-width);

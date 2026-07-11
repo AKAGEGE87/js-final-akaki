@@ -28,6 +28,7 @@ function loadProfileData() {
 
   const avatarEl = document.getElementById('profile-avatar');
   const customImg = document.getElementById('profile-avatar-custom');
+  const deleteBtn = document.getElementById('delete-photo-btn');
 
   if (user.avatar) {
     if (avatarEl) avatarEl.style.display = 'none';
@@ -35,8 +36,10 @@ function loadProfileData() {
       customImg.src = user.avatar;
       customImg.style.display = 'block';
     }
+    if (deleteBtn) deleteBtn.style.display = 'block';
   } else {
     if (customImg) customImg.style.display = 'none';
+    if (deleteBtn) deleteBtn.style.display = 'none';
     if (avatarEl) {
       avatarEl.style.display = 'flex';
       avatarEl.textContent = initials;
@@ -58,6 +61,7 @@ function loadProfileData() {
         activeGrad = (parseInt(activeGrad, 10) + 1) % gradients.length;
         localStorage.setItem('crm_avatar_gradient', activeGrad);
         avatarEl.style.background = gradients[activeGrad];
+        if (typeof renderNavAvatar === 'function') renderNavAvatar(); // sync sidebar initials
         showToast('Avatar style changed! 🎨', 'success', 1500);
       };
     }
@@ -75,6 +79,7 @@ function loadProfileData() {
 /** Handles custom photo upload and saves as Base64 in localStorage crm_users (bonus) */
 function setupAvatarUpload() {
   const uploadBtn = document.getElementById('upload-photo-btn');
+  const deleteBtn = document.getElementById('delete-photo-btn');
   const fileInput = document.getElementById('avatar-file-input');
   if (!uploadBtn || !fileInput) return;
 
@@ -94,10 +99,21 @@ function setupAvatarUpload() {
     reader.onload = () => {
       updateCurrentUser({ avatar: reader.result });
       loadProfileData();
+      if (typeof renderNavAvatar === 'function') renderNavAvatar(); // sync sidebar photo
       showToast('Profile photo updated! 📷', 'success');
     };
     reader.readAsDataURL(file);
   };
+
+  if (deleteBtn) {
+    deleteBtn.onclick = () => {
+      updateCurrentUser({ avatar: null });
+      fileInput.value = ''; // reset file input
+      loadProfileData();
+      if (typeof renderNavAvatar === 'function') renderNavAvatar(); // sync sidebar photo
+      showToast('Profile photo removed ✓', 'success');
+    };
+  }
 }
 
 // -- EDIT PROFILE (P5.2) --
@@ -120,6 +136,7 @@ function setupProfileForm() {
 
     updateCurrentUser({ fullName, company });
     loadProfileData();
+    if (typeof renderNavAvatar === 'function') renderNavAvatar(); // sync sidebar initials
     showToast('Profile updated ✓', 'success');
   });
 }

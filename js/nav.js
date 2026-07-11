@@ -18,6 +18,7 @@ function initNav() {
   setupLogout();
   setupEasterEgg(); // 🥚 hidden bonus
   initSessionTimer(); // Live session timer (bonus)
+  renderNavAvatar(); // Sidebar profile photo logout trigger (bonus)
 }
 
 // ── Theme ──────────────────────────────────────────────────
@@ -150,4 +151,45 @@ function initSessionTimer() {
 
   update();
   setInterval(update, 1000);
+}
+
+// ── Sidebar Avatar ─────────────────────────────────────────
+
+/** Renders logged in user photo or initials inside the sidebar footer logout trigger */
+function renderNavAvatar() {
+  const initialsEl = document.getElementById('nav-avatar-initials');
+  const imgEl      = document.getElementById('nav-avatar-img');
+  if (!initialsEl || !imgEl) return;
+
+  const user = getCurrentUser();
+  if (!user) return;
+
+  if (user.avatar) {
+    initialsEl.style.display = 'none';
+    imgEl.src = user.avatar;
+    imgEl.style.display = 'block';
+  } else {
+    imgEl.style.display = 'none';
+    initialsEl.style.display = 'flex';
+
+    // Initials calculation
+    initialsEl.textContent = user.fullName
+      .split(' ')
+      .map(w => w[0] || '')
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+
+    // Apply color gradient
+    const gradients = [
+      'linear-gradient(135deg, #6c63ff, #a78bfa)',
+      'linear-gradient(135deg, #ec4899, #f43f5e)',
+      'linear-gradient(135deg, #10b981, #059669)',
+      'linear-gradient(135deg, #f59e0b, #d97706)',
+      'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+      'linear-gradient(135deg, #8b5cf6, #6d28d9)'
+    ];
+    const activeGrad = localStorage.getItem('crm_avatar_gradient') || 0;
+    initialsEl.style.background = gradients[activeGrad];
+  }
 }
