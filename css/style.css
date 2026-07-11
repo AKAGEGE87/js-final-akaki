@@ -1057,6 +1057,19 @@ p { line-height: 1.6; }
 .badge-won       { background: var(--status-won-bg); color: var(--status-won); }
 .badge-lost      { background: var(--status-lost-bg); color: var(--status-lost); }
 
+.notes-count-badge {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
 /* ══════════════════════════════════════════
    MODALS
 ══════════════════════════════════════════ */

@@ -34,13 +34,17 @@
 
         <!-- Full Name -->
         <div class="form-group">
-          <label class="form-label" for="fullName">Full Name</label>
+          <div style="display:flex; justify-content:space-between; align-items:center">
+            <label class="form-label" for="fullName">Full Name</label>
+            <span id="name-counter" class="field-counter">0 / 50</span>
+          </div>
           <input
             type="text"
             id="fullName"
             class="form-input"
             placeholder="Nino Beridze"
             autocomplete="name"
+            maxlength="50"
           >
         </div>
 
