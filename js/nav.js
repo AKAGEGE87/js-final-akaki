@@ -16,6 +16,7 @@ function initNav() {
   setActiveNavLink();
   setupThemeToggle();
   setupLogout();
+  setupEasterEgg(); // 🥚 hidden bonus
 }
 
 // ── Theme ──────────────────────────────────────────────────
@@ -77,4 +78,49 @@ function setupLogout() {
     clearSession();                   // only session is removed
     window.location.href = 'index.html';
   });
+}
+
+// ── Easter Egg 🥚 ──────────────────────────────────────────
+
+/**
+ * Click the logo 5 times within 2 seconds to trigger the Easter Egg.
+ * Fires a party toast and drops CSS confetti across the screen.
+ */
+function setupEasterEgg() {
+  const logo = document.getElementById('nav-logo');
+  if (!logo) return;
+
+  let clicks = 0;
+  let timer  = null;
+
+  logo.addEventListener('click', () => {
+    clicks++;
+    clearTimeout(timer);
+    timer = setTimeout(() => { clicks = 0; }, 2000);
+
+    if (clicks >= 5) {
+      clicks = 0;
+      showToast('🎉 Easter Egg unlocked! You found the secret! 🥚', 'success', 4000);
+      launchConfetti();
+    }
+  });
+}
+
+function launchConfetti() {
+  const emojis = ['🎉', '⭐', '🚀', '✨', '🎊', '💥', '🏆'];
+  for (let i = 0; i < 30; i++) {
+    const el = document.createElement('span');
+    el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    el.style.cssText = `
+      position:fixed;
+      top:-2rem;
+      left:${Math.random() * 100}vw;
+      font-size:${1.2 + Math.random() * 1.5}rem;
+      animation: confettiFall ${1.5 + Math.random() * 2}s ease-in forwards;
+      pointer-events:none;
+      z-index:9999;
+    `;
+    document.body.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
 }
