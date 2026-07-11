@@ -1182,6 +1182,36 @@ p { line-height: 1.6; }
 
 .note-input-row .form-input { flex: 1; }
 
+/* Call timer (bonus) */
+.call-timer-section {
+  border-top: 1px solid var(--border);
+  padding-top: 0.9rem;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.call-timer-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.call-timer-icon { font-size: 1rem; }
+
+.call-timer-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.call-timer-buttons .btn { padding: 0.4rem 0.85rem; font-size: 0.82rem; }
+
 /* ══════════════════════════════════════════
    PROFILE PAGE
 ══════════════════════════════════════════ */

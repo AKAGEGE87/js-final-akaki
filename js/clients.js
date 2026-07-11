@@ -384,8 +384,14 @@ async function saveEditedClient(id, data) {
 function setupDetailModal() {
   const modal = document.getElementById('detail-modal');
   if (!modal) return;
-  document.getElementById('detail-modal-close').addEventListener('click', () => modal.classList.remove('modal-open'));
-  modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('modal-open'); });
+
+  const closeModal = () => {
+    stopCallTimer(); // always stop any running call timer on close
+    modal.classList.remove('modal-open');
+  };
+
+  document.getElementById('detail-modal-close').addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 }
 
 function openClientDetail(id) {
