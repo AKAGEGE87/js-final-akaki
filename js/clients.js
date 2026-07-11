@@ -186,11 +186,20 @@ async function deleteClient(id, event) {
 
 // -- TOOLBAR (search + chips + sort) --
 
+let searchDebounceTimer = null; // holds the pending setTimeout id
+
 function setupToolbar() {
-  document.getElementById('search-input')?.addEventListener('input', e => {
-    searchQuery = e.target.value;
-    renderClients(getVisibleClients());
-  });
+  const searchInput = document.getElementById('search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', e => {
+      // Debounce: cancel any pending render, wait 300ms after last keystroke
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        searchQuery = e.target.value;
+        renderClients(getVisibleClients());
+      }, 300);
+    });
+  }
 
   document.querySelectorAll('.filter-chip').forEach(chip => {
     chip.addEventListener('click', () => {
@@ -406,6 +415,7 @@ function openClientDetail(id) {
 
   document.getElementById('add-note-btn').onclick = () => addNote(id);
   document.getElementById('remind-btn').onclick   = () => setReminder(id, client.name);
+  setupCallTimer(id); // wire up call timer for this client
 
   modal.classList.add('modal-open');
 }
@@ -447,6 +457,63 @@ function addNote(clientId) {
 function setReminder(clientId, clientName) {
   showToast('Reminder set ✓', 'success');
   setTimeout(() => showToast(`⏰ Follow up: ${clientName}`, 'info', 5000), 60000);
+}
+
+// -- CALL TIMER (bonus) --
+
+let callTimerInterval = null; // active setInterval id
+let callSeconds       = 0;    // elapsed seconds
+
+function setupCallTimer(clientId) {
+  const startBtn = document.getElementById('call-start-btn');
+  const endBtn   = document.getElementById('call-end-btn');
+  const clock    = document.getElementById('call-timer-clock');
+  if (!startBtn || !endBtn || !clock) return;
+
+  // Reset to clean state every time modal opens
+  stopCallTimer();
+  clock.textContent = '00:00';
+
+  startBtn.onclick = () => {
+    callSeconds = 0;
+    clock.textContent = '00:00';
+    startBtn.disabled = true;
+    endBtn.disabled   = false;
+
+    // setInterval increments callSeconds every second and updates the display
+    callTimerInterval = setInterval(() => {
+      callSeconds++;
+      const mm = String(Math.floor(callSeconds / 60)).padStart(2, '0');
+      const ss = String(callSeconds % 60).padStart(2, '0');
+      clock.textContent = `${mm}:${ss}`;
+    }, 1000);
+  };
+
+  endBtn.onclick = () => {
+    stopCallTimer();
+    startBtn.disabled = false;
+    endBtn.disabled   = true;
+
+    // Save call duration as a note
+    const mm  = String(Math.floor(callSeconds / 60)).padStart(2, '0');
+    const ss  = String(callSeconds % 60).padStart(2, '0');
+    const txt = `📞 Call duration: ${mm}:${ss}`;
+
+    const client = clientsState.find(c => c.id === clientId);
+    if (client) {
+      client.notes.push({ text: txt, date: new Date().toLocaleString() });
+      saveClients(clientsState);
+      renderNotes(client);
+    }
+    showToast(`Call logged: ${mm}:${ss}`, 'success');
+  };
+}
+
+/** Clears the interval and resets counter */
+function stopCallTimer() {
+  clearInterval(callTimerInterval);
+  callTimerInterval = null;
+  callSeconds = 0;
 }
 
 // -- SHARED HELPERS --
