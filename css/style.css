@@ -1598,3 +1598,11 @@ p { line-height: 1.6; }
 .pulse-anim {
   animation: pulse 1.5s infinite ease-in-out;
 }
+
+/* Search Query Highlight (bonus) */
+mark.highlight {
+  background: rgba(108, 99, 255, 0.3);
+  color: inherit;
+  padding: 0 0.15rem;
+  border-radius: 3px;
+}
