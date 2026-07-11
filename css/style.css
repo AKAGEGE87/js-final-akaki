@@ -838,7 +838,7 @@ p { line-height: 1.6; }
 
 .search-input {
   width: 100%;
-  padding: 0.65rem 1rem 0.65rem 2.5rem;
+  padding: 0.65rem 2.2rem 0.65rem 2.5rem; /* extra right padding for X button */
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -854,6 +854,24 @@ p { line-height: 1.6; }
 }
 
 .search-input::placeholder { color: var(--text-muted); }
+
+.search-clear {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0.2rem;
+  border-radius: 50%;
+  transition: var(--transition);
+}
+.search-clear:hover { color: var(--accent); background: rgba(108,99,255,0.12); }
 
 /* Filter chips */
 .filter-chips {
