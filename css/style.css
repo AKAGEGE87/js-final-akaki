@@ -1290,6 +1290,13 @@ p { line-height: 1.6; }
   justify-content: center;
   margin: 0 auto 1rem;
   box-shadow: 0 0 0 4px rgba(108,99,255,0.2);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-avatar-initials:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 0 6px rgba(108,99,255,0.3);
 }
 
 .profile-display-name { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.25rem; }

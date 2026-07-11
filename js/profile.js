@@ -26,7 +26,32 @@ function loadProfileData() {
     .toUpperCase()
     .slice(0, 2);
 
-  setText('profile-avatar',   initials);
+  const avatarEl = document.getElementById('profile-avatar');
+  if (avatarEl) {
+    avatarEl.textContent = initials;
+
+    // Custom gradient generator (bonus)
+    const gradients = [
+      'linear-gradient(135deg, #6c63ff, #a78bfa)',
+      'linear-gradient(135deg, #ec4899, #f43f5e)',
+      'linear-gradient(135deg, #10b981, #059669)',
+      'linear-gradient(135deg, #f59e0b, #d97706)',
+      'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+      'linear-gradient(135deg, #8b5cf6, #6d28d9)'
+    ];
+
+    // Load saved or use default
+    let activeGrad = localStorage.getItem('crm_avatar_gradient') || 0;
+    avatarEl.style.background = gradients[activeGrad];
+
+    avatarEl.onclick = () => {
+      activeGrad = (parseInt(activeGrad, 10) + 1) % gradients.length;
+      localStorage.setItem('crm_avatar_gradient', activeGrad);
+      avatarEl.style.background = gradients[activeGrad];
+      showToast('Avatar style changed! 🎨', 'success', 1500);
+    };
+  }
+
   setText('profile-name',     user.fullName);
   setText('profile-email',    user.email);
   setText('profile-company',  user.company || '—');

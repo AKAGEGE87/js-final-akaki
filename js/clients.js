@@ -195,7 +195,10 @@ function buildClientCard(c) {
         </div>
       </div>
       <div class="client-card-footer">
-        <span class="badge badge-${STATUS_CLASS[c.status] || 'lead'}">${c.status}</span>
+        <div style="display:flex; align-items:center; gap:0.5rem">
+          <span class="badge badge-${STATUS_CLASS[c.status] || 'lead'}">${c.status}</span>
+          <span class="notes-count-badge" title="Notes count">💬 ${(c.notes || []).length}</span>
+        </div>
         <span class="deal-value">$${(c.dealValue || 0).toLocaleString()}</span>
         <select class="status-select" data-id="${c.id}"
           onchange="changeStatus(this)" onclick="event.stopPropagation()"
