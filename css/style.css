@@ -438,6 +438,24 @@ p { line-height: 1.6; }
   background: var(--error-light);
 }
 
+/* Edit button on client cards */
+.btn-edit {
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  transition: var(--transition);
+}
+
+.btn-edit:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(108, 99, 255, 0.12);
+}
+
+
 /* ══════════════════════════════════════════
    APP LAYOUT (Protected Pages)
 ══════════════════════════════════════════ */

@@ -5,10 +5,11 @@
  */
 
 // -- State --
-let clientsState = [];      // source of truth (loaded from localStorage or API)
-let activeFilter = 'All';   // active status chip
-let searchQuery  = '';      // search box value
-let sortBy       = 'newest';// sort select value
+let clientsState   = [];      // source of truth (loaded from localStorage or API)
+let activeFilter   = 'All';   // active status chip
+let searchQuery    = '';      // search box value
+let sortBy         = 'newest';// sort select value
+let editingClientId = null;   // null = add mode, number = edit mode
 
 // Status → CSS badge class
 const STATUS_CLASS = { Lead: 'lead', Contacted: 'contacted', Won: 'won', Lost: 'lost' };
@@ -143,6 +144,8 @@ function buildClientCard(c) {
         <select class="status-select" data-id="${c.id}"
           onchange="changeStatus(this)" onclick="event.stopPropagation()"
           aria-label="Change status for ${c.name}">${opts}</select>
+        <button class="btn-edit" onclick="openEditModal(${c.id}, event)"
+          aria-label="Edit ${c.name}">Edit</button>
         <button class="btn-delete" onclick="deleteClient(${c.id}, event)"
           aria-label="Delete ${c.name}">Delete</button>
       </div>
@@ -213,18 +216,54 @@ function setupAddClientModal() {
   if (!addBtn || !modal || !form) return;
 
   addBtn.addEventListener('click', () => {
+    editingClientId = null;                                          // switch to add mode
     form.reset();
     clearErrors(form);
+    document.getElementById('add-modal-title').textContent  = 'Add New Client';
+    document.getElementById('add-submit-btn').textContent   = 'Add Client';
     modal.classList.add('modal-open');
     document.getElementById('new-name').focus();
   });
 
-  document.getElementById('add-modal-close').addEventListener('click', () => modal.classList.remove('modal-open'));
-  modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('modal-open'); });
-  form.addEventListener('submit', handleAddClient);
+  document.getElementById('add-modal-close').addEventListener('click', closeAddModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeAddModal(); });
+  form.addEventListener('submit', handleClientForm);
 }
 
-async function handleAddClient(e) {
+/** Closes the add/edit modal and resets its mode back to "add" */
+function closeAddModal() {
+  document.getElementById('add-client-modal').classList.remove('modal-open');
+  document.getElementById('add-modal-title').textContent = 'Add New Client';
+  document.getElementById('add-submit-btn').textContent  = 'Add Client';
+  editingClientId = null;
+}
+
+/** Opens the shared modal pre-filled with the client's existing data (edit mode) */
+function openEditModal(id, event) {
+  if (event) event.stopPropagation(); // prevent card click opening detail modal
+
+  const client = clientsState.find(c => c.id === id);
+  if (!client) return;
+
+  editingClientId = id; // switch to edit mode
+
+  // Pre-fill form fields with current values
+  document.getElementById('new-name').value    = client.name;
+  document.getElementById('new-email').value   = client.email;
+  document.getElementById('new-phone').value   = client.phone    || '';
+  document.getElementById('new-company').value = client.company  || '';
+  document.getElementById('new-deal').value    = client.dealValue || '';
+  document.getElementById('new-status').value  = client.status;
+
+  clearErrors(document.getElementById('add-client-form'));
+  document.getElementById('add-modal-title').textContent = 'Edit Client';
+  document.getElementById('add-submit-btn').textContent  = 'Save Changes';
+  document.getElementById('add-client-modal').classList.add('modal-open');
+  document.getElementById('new-name').focus();
+}
+
+/** Single submit handler — routes to add or edit based on editingClientId */
+async function handleClientForm(e) {
   e.preventDefault();
 
   const form     = document.getElementById('add-client-form');
@@ -246,9 +285,15 @@ async function handleAddClient(e) {
   if (!isValidEmail(email)) {
     showError('new-email', 'Please enter a valid email address', form);
     hasError = true;
-  } else if (clientsState.some(c => c.email.toLowerCase() === email)) {
-    showError('new-email', 'A client with this email already exists', form);
-    hasError = true;
+  } else {
+    // Email must be unique — when editing, exclude the client's own current email
+    const duplicate = clientsState.some(
+      c => c.email.toLowerCase() === email && c.id !== editingClientId
+    );
+    if (duplicate) {
+      showError('new-email', 'A client with this email already exists', form);
+      hasError = true;
+    }
   }
 
   if (phone && phone.length < 6) {
@@ -264,35 +309,65 @@ async function handleAddClient(e) {
 
   if (hasError) return;
 
-  // POST to API — result may not persist on server, localStorage is source of truth
+  const formData = { name, email, phone, company, status, dealValue: dealNum };
+
+  if (editingClientId !== null) {
+    await saveEditedClient(editingClientId, formData);
+  } else {
+    await saveNewClient(formData);
+  }
+}
+
+/** Sends POST, adds client to state top, saves, renders */
+async function saveNewClient(data) {
   let serverId = Date.now();
   try {
     const res = await fetch('https://dummyjson.com/users/add', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ firstName: name, email, phone }),
+      body:    JSON.stringify({ firstName: data.name, email: data.email, phone: data.phone }),
     });
     if (res.ok) {
-      const data = await res.json();
-      if (data.id) serverId = data.id;
+      const json = await res.json();
+      if (json.id) serverId = json.id;
     }
   } catch (err) {
     console.warn('POST failed, adding locally:', err);
   }
 
   clientsState.unshift({
-    id: serverId, name, email, phone, company,
-    image:     avatarUrl(name, 128),
-    status,
-    dealValue: dealNum,
+    id: serverId, ...data,
+    image:     avatarUrl(data.name, 128),
     notes:     [],
     createdAt: new Date().toISOString(),
   });
 
   saveClients(clientsState);
   renderClients(getVisibleClients());
-  document.getElementById('add-client-modal').classList.remove('modal-open');
+  closeAddModal();
   showToast('Client added ✓', 'success');
+}
+
+/** Sends PUT, updates client in state, saves, renders */
+async function saveEditedClient(id, data) {
+  try {
+    await fetch(`https://dummyjson.com/users/${id}`, {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(data),
+    });
+  } catch (err) {
+    // Network error — still update locally
+    console.warn('PUT failed, updating locally:', err);
+  }
+
+  // Golden Cycle: update state → save → render
+  const client = clientsState.find(c => c.id === id);
+  if (client) Object.assign(client, data);
+  saveClients(clientsState);
+  renderClients(getVisibleClients());
+  closeAddModal();
+  showToast('Client updated ✓', 'success');
 }
 
 // -- DETAIL MODAL (P4.8) --
