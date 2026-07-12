@@ -7,14 +7,15 @@
 import { getUsers, saveUsers, getTheme, saveSession } from './storage.js';
 import { requireGuest } from './guard.js';
 import { showToast } from './toast.js';
-import { isValidEmail, showError, clearErrors } from './utils.js';
+import { isValidEmail, showError, clearErrors, $, setupPasswordToggles } from './utils.js';
 
 // -- SIGN UP --
 
 export function initSignUp() {
   requireGuest();
   document.documentElement.setAttribute('data-theme', getTheme());
-  document.getElementById('signup-form').addEventListener('submit', handleSignUp);
+  $('#signup-form').addEventListener('submit', handleSignUp);
+  setupPasswordToggles();
   initPasswordStrength();
   initNameCounter(); // live length counter (bonus)
 }
@@ -23,11 +24,11 @@ function handleSignUp(e) {
   e.preventDefault();
   clearErrors();
 
-  const fullName        = document.getElementById('fullName').value.trim();
-  const email           = document.getElementById('email').value.trim().toLowerCase();
-  const company         = document.getElementById('company').value.trim();
-  const password        = document.getElementById('password').value;
-  const confirmPassword = document.getElementById('confirmPassword').value;
+  const fullName        = $('#fullName').value.trim();
+  const email           = $('#email').value.trim().toLowerCase();
+  const company         = $('#company').value.trim();
+  const password        = $('#password').value;
+  const confirmPassword = $('#confirmPassword').value;
   const users           = getUsers();
   let   hasError        = false;
 
@@ -80,15 +81,16 @@ function handleSignUp(e) {
 export function initLogin() {
   requireGuest();
   document.documentElement.setAttribute('data-theme', getTheme());
-  document.getElementById('login-form').addEventListener('submit', handleLogin);
+  $('#login-form').addEventListener('submit', handleLogin);
+  setupPasswordToggles();
 }
 
 function handleLogin(e) {
   e.preventDefault();
   clearErrors();
 
-  const email    = document.getElementById('email').value.trim().toLowerCase();
-  const password = document.getElementById('password').value;
+  const email    = $('#email').value.trim().toLowerCase();
+  const password = $('#password').value;
   let   hasError = false;
 
   if (!email)    { showError('email',    'Email is required');    hasError = true; }
@@ -105,7 +107,7 @@ function handleLogin(e) {
   }
 
   // "Remember me" checked → localStorage; unchecked → sessionStorage (tab-only)
-  const remember = document.getElementById('remember-me')?.checked !== false;
+  const remember = $('#remember-me')?.checked !== false;
   saveSession({ userId: user.id, email: user.email, loginAt: new Date().toISOString() }, remember);
   window.location.href = 'dashboard.html';
 }
@@ -113,9 +115,9 @@ function handleLogin(e) {
 // -- PASSWORD STRENGTH (bonus) --
 
 function initPasswordStrength() {
-  const input   = document.getElementById('password');
-  const wrapper = document.getElementById('password-strength');
-  const label   = document.getElementById('strength-label');
+  const input   = $('#password');
+  const wrapper = $('#password-strength');
+  const label   = $('#strength-label');
   if (!input || !wrapper || !label) return;
 
   input.addEventListener('input', () => {
@@ -136,15 +138,9 @@ function initPasswordStrength() {
   });
 }
 
-/** Toggle password field between text and password type */
-export function togglePassword(fieldId) {
-  const field = document.getElementById(fieldId);
-  if (field) field.type = field.type === 'password' ? 'text' : 'password';
-}
-
 function initNameCounter() {
-  const input   = document.getElementById('fullName');
-  const counter = document.getElementById('name-counter');
+  const input   = $('#fullName');
+  const counter = $('#name-counter');
   if (!input || !counter) return;
 
   input.addEventListener('input', () => {

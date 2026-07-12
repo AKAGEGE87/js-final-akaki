@@ -166,8 +166,7 @@
       </div>
 
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="add-modal-cancel"
-          onclick="closeAddModal()">
+        <button type="button" class="btn btn-secondary" id="add-modal-cancel">
           Cancel
         </button>
         <button type="submit" class="btn btn-primary" id="add-submit-btn">Add Client</button>
@@ -263,12 +262,7 @@
 <div id="toast-container"></div>
 
   <script type="module">
-    import { initClients, closeAddModal, openEditModal, deleteClient, changeStatus, openClientDetail } from './js/clients.js';
-    window.closeAddModal = closeAddModal;
-    window.openEditModal = openEditModal;
-    window.deleteClient = deleteClient;
-    window.changeStatus = changeStatus;
-    window.openClientDetail = openClientDetail;
+    import { initClients } from './js/clients.js';
     initClients();
   </script>
 </body>

@@ -53,7 +53,7 @@
               placeholder="••••••••"
               autocomplete="current-password"
             >
-            <button type="button" class="toggle-password" onclick="togglePassword('password')" tabindex="-1" aria-label="Toggle password visibility">👁</button>
+            <button type="button" class="toggle-password" tabindex="-1" aria-label="Toggle password visibility">👁</button>
           </div>
         </div>
 
@@ -79,8 +79,7 @@
   <div id="toast-container"></div>
 
   <script type="module">
-    import { initLogin, togglePassword } from './js/auth.js';
-    window.togglePassword = togglePassword;
+    import { initLogin } from './js/auth.js';
 
     // Seed demo account if it doesn't exist yet (for evaluator convenience)
     (function seedDemoAccount() {

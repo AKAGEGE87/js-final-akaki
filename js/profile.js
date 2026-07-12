@@ -1,11 +1,13 @@
 /**
  * profile.js — Profile page for 10X CRM
  * Handles: display user info, edit profile, change password, reset CRM data.
- */import { requireAuth } from './guard.js';
+ */
+
+import { requireAuth } from './guard.js';
 import { initNav, renderNavAvatar } from './nav.js';
 import { getCurrentUser, getUsers, getSession, saveUsers, clearClients, saveClients } from './storage.js';
 import { showToast } from './toast.js';
-import { showError, clearErrors, setText } from './utils.js';
+import { showError, clearErrors, setText, $, setupPasswordToggles } from './utils.js';
 
 export function initProfile() {
   if (!requireAuth()) return;
@@ -15,6 +17,7 @@ export function initProfile() {
   setupPasswordForm();
   setupResetData();
   setupAvatarUpload(); // 📷 photo upload bonus
+  setupPasswordToggles(); // Dynamically toggle password visibility
 }
 
 // -- DISPLAY (P5.1) --
@@ -30,9 +33,9 @@ function loadProfileData() {
     .toUpperCase()
     .slice(0, 2);
 
-  const avatarEl = document.getElementById('profile-avatar');
-  const customImg = document.getElementById('profile-avatar-custom');
-  const deleteBtn = document.getElementById('delete-photo-btn');
+  const avatarEl = $('#profile-avatar');
+  const customImg = $('#profile-avatar-custom');
+  const deleteBtn = $('#delete-photo-btn');
 
   if (user.avatar) {
     if (avatarEl) avatarEl.style.display = 'none';
@@ -82,9 +85,9 @@ function loadProfileData() {
 
 /** Handles custom photo upload and saves as Base64 in localStorage crm_users (bonus) */
 function setupAvatarUpload() {
-  const uploadBtn = document.getElementById('upload-photo-btn');
-  const deleteBtn = document.getElementById('delete-photo-btn');
-  const fileInput = document.getElementById('avatar-file-input');
+  const uploadBtn = $('#upload-photo-btn');
+  const deleteBtn = $('#delete-photo-btn');
+  const fileInput = $('#avatar-file-input');
   if (!uploadBtn || !fileInput) return;
 
   uploadBtn.onclick = () => fileInput.click();
@@ -123,15 +126,15 @@ function setupAvatarUpload() {
 // -- EDIT PROFILE (P5.2) --
 
 function setupProfileForm() {
-  const form = document.getElementById('profile-form');
+  const form = $('#profile-form');
   if (!form) return;
 
   form.addEventListener('submit', e => {
     e.preventDefault();
     clearErrors(form);
 
-    const fullName = document.getElementById('edit-fullName').value.trim();
-    const company  = document.getElementById('edit-company').value.trim();
+    const fullName = $('#edit-fullName').value.trim();
+    const company  = $('#edit-company').value.trim();
 
     if (fullName.length < 3) {
       showError('edit-fullName', 'Full name must be at least 3 characters', form);
@@ -148,16 +151,16 @@ function setupProfileForm() {
 // -- CHANGE PASSWORD (P5.3) --
 
 function setupPasswordForm() {
-  const form = document.getElementById('password-form');
+  const form = $('#password-form');
   if (!form) return;
 
   form.addEventListener('submit', e => {
     e.preventDefault();
     clearErrors(form);
 
-    const currentPwd    = document.getElementById('current-password').value;
-    const newPwd        = document.getElementById('new-password').value;
-    const confirmNewPwd = document.getElementById('confirm-new-password').value;
+    const currentPwd    = $('#current-password').value;
+    const newPwd        = $('#new-password').value;
+    const confirmNewPwd = $('#confirm-new-password').value;
     const user          = getCurrentUser();
     let   hasError      = false;
 
@@ -190,7 +193,7 @@ function setupPasswordForm() {
 // -- RESET CRM DATA (P5.4) --
 
 function setupResetData() {
-  const btn = document.getElementById('reset-data-btn');
+  const btn = $('#reset-data-btn');
   if (!btn) return;
 
   btn.addEventListener('click', async () => {
@@ -245,15 +248,7 @@ function updateCurrentUser(fields) {
   saveUsers(users);
 }
 
-
-
 function setValue(id, value) {
-  const el = document.getElementById(id);
+  const el = $('#' + id);
   if (el) el.value = value;
-}
-
-/** Toggle password field between text and password type (bonus) */
-function togglePwd(fieldId) {
-  const field = document.getElementById(fieldId);
-  if (field) field.type = field.type === 'password' ? 'text' : 'password';
 }

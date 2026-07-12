@@ -8,7 +8,7 @@ import { requireAuth } from './guard.js';
 import { initNav } from './nav.js';
 import { getStoredClients, saveClients, clearClients } from './storage.js';
 import { showToast } from './toast.js';
-import { isValidEmail, showError, clearErrors, setText } from './utils.js';
+import { isValidEmail, showError, clearErrors, setText, $, $$, escapeHTML, STATUS_CLASS } from './utils.js';
 
 // -- State --
 let clientsState   = [];      // source of truth (loaded from localStorage or API)
@@ -16,9 +16,6 @@ let activeFilter   = 'All';   // active status chip
 let searchQuery    = '';      // search box value
 let sortBy         = 'newest';// sort select value
 let editingClientId = null;   // null = add mode, number = edit mode
-
-// Status → CSS badge class
-const STATUS_CLASS = { Lead: 'lead', Contacted: 'contacted', Won: 'won', Lost: 'lost' };
 
 // -- INIT --
 
@@ -30,7 +27,8 @@ export async function initClients() {
   setupAddClientModal();
   setupDetailModal();
   setupKeyboardShortcuts();
-  document.getElementById('export-csv-btn')?.addEventListener('click', exportCSV);
+  setupEventDelegation();
+  $('#export-csv-btn')?.addEventListener('click', exportCSV);
 }
 
 /** Global keyboard shortcuts for the clients page */
@@ -38,7 +36,7 @@ function setupKeyboardShortcuts() {
   document.addEventListener('keydown', e => {
     // Escape — close any open modal
     if (e.key === 'Escape') {
-      document.querySelectorAll('.modal-overlay.modal-open').forEach(m => {
+      $$('.modal-overlay.modal-open').forEach(m => {
         m.classList.remove('modal-open');
         stopCallTimer(); // stop timer if detail modal closes via keyboard
       });
@@ -49,7 +47,7 @@ function setupKeyboardShortcuts() {
         document.activeElement.tagName !== 'INPUT' &&
         document.activeElement.tagName !== 'TEXTAREA') {
       e.preventDefault();
-      document.getElementById('search-input')?.focus();
+      $('#search-input')?.focus();
     }
   });
 }
@@ -116,9 +114,10 @@ async function loadClients() {
     setListZone(`
       <div class="error-state">
         <p>Could not load clients. Check your connection and try again.</p>
-        <button class="btn btn-secondary" onclick="retryLoad()">Retry</button>
+        <button class="btn btn-secondary" id="retry-load-btn">Retry</button>
       </div>
     `);
+    $('#retry-load-btn')?.addEventListener('click', retryLoad);
   }
 }
 
@@ -129,10 +128,6 @@ function retryLoad() {
 
 // -- FILTER / SEARCH / SORT (P4.7) --
 
-/**
- * Returns a filtered + searched + sorted copy of clientsState.
- * The original array is never mutated.
- */
 function getVisibleClients() {
   let list = [...clientsState];
 
@@ -158,7 +153,7 @@ function getVisibleClients() {
 // -- RENDER (P4.3) --
 
 function renderClients(list) {
-  const container = document.getElementById('clients-list');
+  const container = $('#clients-list');
   if (!container) return;
 
   if (list.length === 0) {
@@ -170,7 +165,6 @@ function renderClients(list) {
   updateChipCounts(); // keep chip labels in sync after every render
 }
 
-/** Updates each filter chip to show how many clients match that status */
 function updateChipCounts() {
   const totals = { All: clientsState.length };
   ['Lead', 'Contacted', 'Won', 'Lost'].forEach(s => {
@@ -178,7 +172,7 @@ function updateChipCounts() {
   });
 
   Object.entries(totals).forEach(([status, count]) => {
-    const chip = document.getElementById(`chip-${status}`);
+    const chip = $('#chip-' + status);
     if (chip) chip.textContent = count > 0 ? `${status} (${count})` : status;
   });
 }
@@ -196,18 +190,21 @@ function buildClientCard(c) {
     .map(s => `<option value="${s}" ${c.status === s ? 'selected' : ''}>${s}</option>`)
     .join('');
 
-  const nameHTML = highlightHTML(c.name, searchQuery);
-  const compHTML = highlightHTML(c.company || '—', searchQuery);
+  const safeName = escapeHTML(c.name);
+  const safeCompany = escapeHTML(c.company || '—');
+  const safeEmail = escapeHTML(c.email);
+  const nameHTML = highlightHTML(safeName, searchQuery);
+  const compHTML = highlightHTML(safeCompany, searchQuery);
 
   return `
     <div class="client-card" data-id="${c.id}">
-      <div class="client-card-header" onclick="openClientDetail(${c.id})">
-        <img src="${avatar}" alt="${c.name}" class="client-avatar"
+      <div class="client-card-header" data-action="view-details">
+        <img src="${avatar}" alt="${safeName}" class="client-avatar"
           onerror="this.src='${avatarUrl(c.name, 56)}'">
         <div class="client-info">
           <h3 class="client-name">${nameHTML}</h3>
           <p class="client-company">${compHTML}</p>
-          <p class="client-email">${c.email}</p>
+          <p class="client-email">${safeEmail}</p>
         </div>
       </div>
       <div class="client-card-footer">
@@ -216,21 +213,58 @@ function buildClientCard(c) {
           <span class="notes-count-badge" title="Notes count">💬 ${(c.notes || []).length}</span>
         </div>
         <span class="deal-value">$${(c.dealValue || 0).toLocaleString()}</span>
-        <select class="status-select" data-id="${c.id}"
-          onchange="changeStatus(this)" onclick="event.stopPropagation()"
-          aria-label="Change status for ${c.name}">${opts}</select>
-        <button class="btn-edit" onclick="openEditModal(${c.id}, event)"
-          aria-label="Edit ${c.name}">Edit</button>
-        <button class="btn-delete" onclick="deleteClient(${c.id}, event)"
-          aria-label="Delete ${c.name}">Delete</button>
+        <select class="status-select" data-id="${c.id}" data-action="change-status"
+          aria-label="Change status for ${safeName}">${opts}</select>
+        <button class="btn-edit" data-action="edit-client"
+          aria-label="Edit ${safeName}">Edit</button>
+        <button class="btn-delete" data-action="delete-client"
+          aria-label="Delete ${safeName}">Delete</button>
       </div>
     </div>
   `;
 }
 
+// -- EVENT DELEGATION --
+
+function setupEventDelegation() {
+  const listContainer = $('#clients-list');
+  if (!listContainer) return;
+
+  listContainer.addEventListener('click', e => {
+    const card = e.target.closest('.client-card');
+    if (!card) return;
+    const id = parseInt(card.dataset.id, 10);
+
+    const editBtn = e.target.closest('[data-action="edit-client"]');
+    if (editBtn) {
+      openEditModal(id);
+      return;
+    }
+
+    const deleteBtn = e.target.closest('[data-action="delete-client"]');
+    if (deleteBtn) {
+      deleteClient(id);
+      return;
+    }
+
+    const header = e.target.closest('[data-action="view-details"]');
+    if (header) {
+      openClientDetail(id);
+      return;
+    }
+  });
+
+  listContainer.addEventListener('change', e => {
+    const select = e.target.closest('[data-action="change-status"]');
+    if (select) {
+      changeStatus(select);
+    }
+  });
+}
+
 // -- STATUS CHANGE (P4.6) --
 
-export function changeStatus(selectEl) {
+function changeStatus(selectEl) {
   const id     = parseInt(selectEl.dataset.id, 10);
   const client = clientsState.find(c => c.id === id);
   if (!client) return;
@@ -242,14 +276,12 @@ export function changeStatus(selectEl) {
 
 // -- DELETE (P4.5) --
 
-export async function deleteClient(id, event) {
-  event.stopPropagation();
+async function deleteClient(id) {
   if (!confirm('Delete this client? This cannot be undone.')) return;
 
   try {
     await fetch(`https://dummyjson.com/users/${id}`, { method: 'DELETE' });
   } catch (err) {
-    // Network error — still delete locally (DummyJSON returns 404 for locally-added clients too)
     console.warn('DELETE failed, removing locally:', err);
   }
 
@@ -261,18 +293,16 @@ export async function deleteClient(id, event) {
 
 // -- TOOLBAR (search + chips + sort) --
 
-let searchDebounceTimer = null; // holds the pending setTimeout id
+let searchDebounceTimer = null;
 
 function setupToolbar() {
-  const searchInput = document.getElementById('search-input');
-  const clearBtn    = document.getElementById('search-clear');
+  const searchInput = $('#search-input');
+  const clearBtn    = $('#search-clear');
 
   if (searchInput) {
     searchInput.addEventListener('input', e => {
-      // Show/hide clear button
       if (clearBtn) clearBtn.style.display = e.target.value ? 'flex' : 'none';
 
-      // Debounce: wait 300ms after last keystroke before re-rendering
       clearTimeout(searchDebounceTimer);
       searchDebounceTimer = setTimeout(() => {
         searchQuery = e.target.value;
@@ -291,16 +321,16 @@ function setupToolbar() {
     });
   }
 
-  document.querySelectorAll('.filter-chip').forEach(chip => {
+  $$('.filter-chip').forEach(chip => {
     chip.addEventListener('click', () => {
-      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      $$('.filter-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       activeFilter = chip.dataset.status;
       renderClients(getVisibleClients());
     });
   });
 
-  document.getElementById('sort-select')?.addEventListener('change', e => {
+  $('#sort-select')?.addEventListener('change', e => {
     sortBy = e.target.value;
     renderClients(getVisibleClients());
   });
@@ -309,69 +339,64 @@ function setupToolbar() {
 // -- ADD CLIENT MODAL (P4.4) --
 
 function setupAddClientModal() {
-  const addBtn = document.getElementById('add-client-btn');
-  const modal  = document.getElementById('add-client-modal');
-  const form   = document.getElementById('add-client-form');
+  const addBtn = $('#add-client-btn');
+  const modal  = $('#add-client-modal');
+  const form   = $('#add-client-form');
   if (!addBtn || !modal || !form) return;
 
   addBtn.addEventListener('click', () => {
-    editingClientId = null;                                          // switch to add mode
+    editingClientId = null;
     form.reset();
     clearErrors(form);
-    document.getElementById('add-modal-title').textContent  = 'Add New Client';
-    document.getElementById('add-submit-btn').textContent   = 'Add Client';
+    $('#add-modal-title').textContent  = 'Add New Client';
+    $('#add-submit-btn').textContent   = 'Add Client';
     modal.classList.add('modal-open');
-    document.getElementById('new-name').focus();
+    $('#new-name').focus();
   });
 
-  document.getElementById('add-modal-close').addEventListener('click', closeAddModal);
+  $('#add-modal-close').addEventListener('click', closeAddModal);
+  $('#add-modal-cancel')?.addEventListener('click', closeAddModal);
   modal.addEventListener('click', e => { if (e.target === modal) closeAddModal(); });
   form.addEventListener('submit', handleClientForm);
 }
 
-/** Closes the add/edit modal and resets its mode back to "add" */
-export function closeAddModal() {
-  document.getElementById('add-client-modal').classList.remove('modal-open');
-  document.getElementById('add-modal-title').textContent = 'Add New Client';
-  document.getElementById('add-submit-btn').textContent  = 'Add Client';
+function closeAddModal() {
+  $('#add-client-modal').classList.remove('modal-open');
+  $('#add-modal-title').textContent = 'Add New Client';
+  $('#add-submit-btn').textContent  = 'Add Client';
   editingClientId = null;
 }
 
-/** Opens the shared modal pre-filled with the client's existing data (edit mode) */
-export function openEditModal(id, event) {
-  if (event) event.stopPropagation(); // prevent card click opening detail modal
-
+function openEditModal(id) {
   const client = clientsState.find(c => c.id === id);
   if (!client) return;
 
-  editingClientId = id; // switch to edit mode
+  editingClientId = id;
 
-  // Pre-fill form fields with current values
-  document.getElementById('new-name').value    = client.name;
-  document.getElementById('new-email').value   = client.email;
-  document.getElementById('new-phone').value   = client.phone    || '';
-  document.getElementById('new-company').value = client.company  || '';
-  document.getElementById('new-deal').value    = client.dealValue || '';
-  document.getElementById('new-status').value  = client.status;
+  $('#new-name').value    = client.name;
+  $('#new-email').value   = client.email;
+  $('#new-phone').value   = client.phone    || '';
+  $('#new-company').value = client.company  || '';
+  $('#new-deal').value    = client.dealValue || '';
+  $('#new-status').value  = client.status;
 
-  clearErrors(document.getElementById('add-client-form'));
-  document.getElementById('add-modal-title').textContent = 'Edit Client';
-  document.getElementById('add-submit-btn').textContent  = 'Save Changes';
-  document.getElementById('add-client-modal').classList.add('modal-open');
-  document.getElementById('new-name').focus();
+  clearErrors($('#add-client-form'));
+  $('#add-modal-title').textContent = 'Edit Client';
+  $('#add-submit-btn').textContent  = 'Save Changes';
+  $('#add-client-modal').classList.add('modal-open');
+  $('#new-name').focus();
 }
 
-/** Single submit handler — routes to add or edit based on editingClientId */
 async function handleClientForm(e) {
   e.preventDefault();
 
-  const form     = document.getElementById('add-client-form');
-  const name     = document.getElementById('new-name').value.trim();
-  const email    = document.getElementById('new-email').value.trim().toLowerCase();
-  const phone    = document.getElementById('new-phone').value.trim();
-  const company  = document.getElementById('new-company').value.trim();
-  const dealVal  = document.getElementById('new-deal').value;
-  const status   = document.getElementById('new-status').value;
+  const form     = $('#add-client-form');
+  const name     = $('#new-name').value.trim();
+  const email    = $('#new-email').value.trim().toLowerCase();
+  const phone    = $('#new-phone').value.trim();
+  const company  = $('#new-company').value.trim();
+  const dealVal  = $('#new-deal').value;
+  const status   = $('#new-status').value;
 
   clearErrors(form);
   let hasError = false;
@@ -385,7 +410,6 @@ async function handleClientForm(e) {
     showError('new-email', 'Please enter a valid email address', form);
     hasError = true;
   } else {
-    // Email must be unique — when editing, exclude the client's own current email
     const duplicate = clientsState.some(
       c => c.email.toLowerCase() === email && c.id !== editingClientId
     );
@@ -417,7 +441,6 @@ async function handleClientForm(e) {
   }
 }
 
-/** Sends POST, adds client to state top, saves, renders */
 async function saveNewClient(data) {
   let serverId = Date.now();
   try {
@@ -447,7 +470,6 @@ async function saveNewClient(data) {
   showToast('Client added ✓', 'success');
 }
 
-/** Sends PUT, updates client in state, saves, renders */
 async function saveEditedClient(id, data) {
   try {
     await fetch(`https://dummyjson.com/users/${id}`, {
@@ -456,11 +478,9 @@ async function saveEditedClient(id, data) {
       body:    JSON.stringify(data),
     });
   } catch (err) {
-    // Network error — still update locally
     console.warn('PUT failed, updating locally:', err);
   }
 
-  // Golden Cycle: update state → save → render
   const client = clientsState.find(c => c.id === id);
   if (client) Object.assign(client, data);
   saveClients(clientsState);
@@ -472,26 +492,25 @@ async function saveEditedClient(id, data) {
 // -- DETAIL MODAL (P4.8) --
 
 function setupDetailModal() {
-  const modal = document.getElementById('detail-modal');
+  const modal = $('#detail-modal');
   if (!modal) return;
 
   const closeModal = () => {
-    stopCallTimer(); // always stop any running call timer on close
+    stopCallTimer();
     modal.classList.remove('modal-open');
   };
 
-  document.getElementById('detail-modal-close').addEventListener('click', closeModal);
+  $('#detail-modal-close').addEventListener('click', closeModal);
   modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 }
 
-export function openClientDetail(id) {
+function openClientDetail(id) {
   const client = clientsState.find(c => c.id === id);
   if (!client) return;
 
-  const modal = document.getElementById('detail-modal');
+  const modal = $('#detail-modal');
 
-  // Fill header
-  const avatarEl = document.getElementById('detail-avatar');
+  const avatarEl = $('#detail-avatar');
   avatarEl.src = client.image || avatarUrl(client.name, 80);
   avatarEl.onerror = () => { avatarEl.src = avatarUrl(client.name, 80); };
 
@@ -502,26 +521,25 @@ export function openClientDetail(id) {
   setText('detail-deal',    '$' + (client.dealValue || 0).toLocaleString());
   setText('detail-since',   'Client since ' + new Date(client.createdAt).toLocaleDateString());
 
-  const statusEl = document.getElementById('detail-status');
+  const statusEl = $('#detail-status');
   statusEl.textContent = client.status;
   statusEl.className   = `badge badge-${STATUS_CLASS[client.status] || 'lead'}`;
 
   modal.dataset.clientId = id;
   renderNotes(client);
 
-  document.getElementById('add-note-btn').onclick = () => addNote(id);
-  document.getElementById('remind-btn').onclick   = () => setReminder(id, client.name);
-  setupCallTimer(id); // wire up call timer for this client
+  $('#add-note-btn').onclick = () => addNote(id);
+  $('#remind-btn').onclick   = () => setReminder(id, client.name);
+  setupCallTimer(id);
 
-  // Clipboard copy helpers (bonus)
-  const emailEl = document.getElementById('detail-email');
+  const emailEl = $('#detail-email');
   if (emailEl) {
     emailEl.onclick = () => {
       navigator.clipboard.writeText(client.email);
       showToast('Email copied to clipboard! 📋', 'success', 2000);
     };
   }
-  const phoneEl = document.getElementById('detail-phone');
+  const phoneEl = $('#detail-phone');
   if (phoneEl && client.phone) {
     phoneEl.onclick = () => {
       navigator.clipboard.writeText(client.phone);
@@ -533,7 +551,7 @@ export function openClientDetail(id) {
 }
 
 function renderNotes(client) {
-  const list = document.getElementById('notes-list');
+  const list = $('#notes-list');
   if (!list) return;
 
   if (!client.notes?.length) {
@@ -543,16 +561,16 @@ function renderNotes(client) {
 
   list.innerHTML = client.notes.map(n => `
     <div class="note-item">
-      <p class="note-text">${n.text}</p>
-      <span class="note-date">${n.date}</span>
+      <p class="note-text">${escapeHTML(n.text)}</p>
+      <span class="note-date">${escapeHTML(n.date)}</span>
     </div>
   `).join('');
 
-  list.scrollTop = list.scrollHeight; // show newest note
+  list.scrollTop = list.scrollHeight;
 }
 
 function addNote(clientId) {
-  const input  = document.getElementById('note-input');
+  const input  = $('#note-input');
   const text   = input.value.trim();
   if (!text) return;
 
@@ -573,16 +591,15 @@ function setReminder(clientId, clientName) {
 
 // -- CALL TIMER (bonus) --
 
-let callTimerInterval = null; // active setInterval id
-let callSeconds       = 0;    // elapsed seconds
+let callTimerInterval = null;
+let callSeconds       = 0;
 
 function setupCallTimer(clientId) {
-  const startBtn = document.getElementById('call-start-btn');
-  const endBtn   = document.getElementById('call-end-btn');
-  const clock    = document.getElementById('call-timer-clock');
+  const startBtn = $('#call-start-btn');
+  const endBtn   = $('#call-end-btn');
+  const clock    = $('#call-timer-clock');
   if (!startBtn || !endBtn || !clock) return;
 
-  // Reset to clean state every time modal opens
   stopCallTimer();
   clock.textContent = '00:00';
 
@@ -592,7 +609,6 @@ function setupCallTimer(clientId) {
     startBtn.disabled = true;
     endBtn.disabled   = false;
 
-    // setInterval increments callSeconds every second and updates the display
     callTimerInterval = setInterval(() => {
       callSeconds++;
       const mm = String(Math.floor(callSeconds / 60)).padStart(2, '0');
@@ -606,7 +622,6 @@ function setupCallTimer(clientId) {
     startBtn.disabled = false;
     endBtn.disabled   = true;
 
-    // Save call duration as a note
     const mm  = String(Math.floor(callSeconds / 60)).padStart(2, '0');
     const ss  = String(callSeconds % 60).padStart(2, '0');
     const txt = `📞 Call duration: ${mm}:${ss}`;
@@ -621,7 +636,6 @@ function setupCallTimer(clientId) {
   };
 }
 
-/** Clears the interval and resets counter */
 function stopCallTimer() {
   clearInterval(callTimerInterval);
   callTimerInterval = null;
@@ -630,29 +644,23 @@ function stopCallTimer() {
 
 // -- SHARED HELPERS --
 
-/** Generates a UI-Avatars URL for a given name and size */
 function avatarUrl(name, size) {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6c63ff&color=fff&size=${size}`;
 }
 
 function setListZone(html) {
-  const el = document.getElementById('clients-list');
+  const el = $('#clients-list');
   if (el) el.innerHTML = html;
 }
 
 // -- CSV EXPORT (bonus) --
 
-/**
- * Converts clientsState to a .csv file and triggers a browser download.
- * Uses the Blob API to create a file in memory without a server.
- */
 function exportCSV() {
   if (!clientsState.length) {
     showToast('No clients to export', 'error');
     return;
   }
 
-  // Build CSV rows: header + one row per client
   const headers = ['Name', 'Email', 'Phone', 'Company', 'Status', 'Deal Value', 'Created At'];
 
   const rows = clientsState.map(c => [
@@ -667,7 +675,6 @@ function exportCSV() {
 
   const csv  = [headers.join(','), ...rows].join('\n');
 
-  // Create a Blob (in-memory file) and a temporary download link
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -675,7 +682,6 @@ function exportCSV() {
   link.download = `10x-crm-clients-${new Date().toISOString().slice(0, 10)}.csv`;
   link.click();
 
-  // Clean up the temporary object URL from memory
   URL.revokeObjectURL(url);
   showToast(`Exported ${clientsState.length} clients ✓`, 'success');
 }

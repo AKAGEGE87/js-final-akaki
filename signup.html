@@ -83,7 +83,7 @@
               placeholder="••••••••"
               autocomplete="new-password"
             >
-            <button type="button" class="toggle-password" onclick="togglePassword('password')" tabindex="-1" aria-label="Toggle password visibility">👁</button>
+            <button type="button" class="toggle-password" tabindex="-1" aria-label="Toggle password visibility">👁</button>
           </div>
           <!-- Password strength indicator (bonus) -->
           <div id="password-strength" class="password-strength">
@@ -103,7 +103,7 @@
               placeholder="••••••••"
               autocomplete="new-password"
             >
-            <button type="button" class="toggle-password" onclick="togglePassword('confirmPassword')" tabindex="-1" aria-label="Toggle confirm password visibility">👁</button>
+            <button type="button" class="toggle-password" tabindex="-1" aria-label="Toggle confirm password visibility">👁</button>
           </div>
         </div>
 
@@ -121,8 +121,7 @@
   <div id="toast-container"></div>
 
   <script type="module">
-    import { initSignUp, togglePassword } from './js/auth.js';
-    window.togglePassword = togglePassword;
+    import { initSignUp } from './js/auth.js';
     initSignUp();
   </script>
 </body>

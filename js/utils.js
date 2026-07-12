@@ -1,6 +1,16 @@
 /**
- * utils.js — Shared utility functions for 10X CRM
+ * utils.js — Shared utility functions and constants for 10X CRM
  */
+
+// -- CONSTANTS --
+export const STATUS_CLASS = { Lead: 'lead', Contacted: 'contacted', Won: 'won', Lost: 'lost' };
+export const STATUSES = ['Lead', 'Contacted', 'Won', 'Lost'];
+
+// -- DOM HELPERS --
+export const $ = (selector, scope = document) => scope.querySelector(selector);
+export const $$ = (selector, scope = document) => scope.querySelectorAll(selector);
+
+// -- UTILS --
 
 /**
  * Returns true if the email string has @ and a dot after @
@@ -10,6 +20,21 @@
 export function isValidEmail(email) {
   const at = email.indexOf('@');
   return at !== -1 && email.slice(at + 1).includes('.');
+}
+
+/**
+ * Escapes special HTML characters to prevent XSS attacks.
+ * @param {string} str
+ * @returns {string}
+ */
+export function escapeHTML(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 /**
@@ -61,4 +86,21 @@ export function clearErrors(scope) {
 export function setText(id, value) {
   const el = document.getElementById(id);
   if (el) el.textContent = value;
+}
+
+/**
+ * Automatically binds click listeners to .toggle-password buttons to toggle input types.
+ * @param {HTMLElement} [scope]
+ */
+export function setupPasswordToggles(scope = document) {
+  const wrappers = scope.querySelectorAll('.input-wrapper');
+  wrappers.forEach(wrapper => {
+    const input = wrapper.querySelector('input[type="password"], input[type="text"]');
+    const toggleBtn = wrapper.querySelector('.toggle-password');
+    if (input && toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        input.type = input.type === 'password' ? 'text' : 'password';
+      });
+    }
+  });
 }

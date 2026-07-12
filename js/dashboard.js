@@ -1,19 +1,11 @@
 /**
  * dashboard.js — Dashboard page logic for 10X CRM
- *
- * Features (PRD §P3):
- *   P3.1 — Welcome greeting with firstName from session
- *   P3.1 — Live clock updating every second (setInterval)
- *   P3.2 — 4 stat cards: Total Clients, Active Deals, Won Revenue, New This Week
- *   P3.3 — Pipeline Overview (Lead / Contacted / Won / Lost counts + bar)
- *   P3.4 — Recent Clients (last 5 by createdAt desc)
- *   P3.5 — Data loaded from crm_clients (or fetched from API once)
  */
 
 import { requireAuth } from './guard.js';
 import { initNav } from './nav.js';
 import { getCurrentUser, getStoredClients, saveClients } from './storage.js';
-import { setText } from './utils.js';
+import { $, escapeHTML, setText } from './utils.js';
 
 let dashboardClients = []; // local state
 
@@ -31,15 +23,15 @@ export async function initDashboard() {
 function renderWelcome() {
   const user      = getCurrentUser();
   const firstName = user ? user.fullName.split(' ')[0] : 'there';
-  const el        = document.getElementById('welcome-name');
+  const el        = $('#welcome-name');
   if (el) el.textContent = firstName;
 }
 
 function startLiveClock() {
   function tick() {
     const now = new Date();
-    const timeEl = document.getElementById('live-time');
-    const dateEl = document.getElementById('live-date');
+    const timeEl = $('#live-time');
+    const dateEl = $('#live-date');
     if (timeEl) timeEl.textContent = now.toLocaleTimeString();
     if (dateEl) {
       dateEl.textContent = now.toLocaleDateString('en-US', {
@@ -118,7 +110,6 @@ function renderStats() {
   setText('stat-revenue', '$' + revenue.toLocaleString());
 
   // New This Week: createdAt within last 7 days
-  const weekMs     = 7 * 24 * 60 * 60 * 1000;
   const newClients = clients.filter(
     c => (Date.now() - new Date(c.createdAt).getTime()) / 86400000 <= 7
   );
@@ -134,7 +125,7 @@ function renderPipeline() {
   statuses.forEach(status => {
     const count  = dashboardClients.filter(c => c.status === status).length;
     const elId   = `pipeline-${status.toLowerCase()}`;
-    const el     = document.getElementById(elId);
+    const el     = $('#' + elId);
     if (!el) return;
 
     const countEl = el.querySelector('.pipeline-count');
@@ -147,7 +138,7 @@ function renderPipeline() {
 // ── P3.4 — Recent Clients (last 5) ───────────────────────
 
 function renderRecentClients() {
-  const container = document.getElementById('recent-clients-list');
+  const container = $('#recent-clients-list');
   if (!container) return;
 
   // Sort descending by createdAt and take first 5
@@ -162,22 +153,24 @@ function renderRecentClients() {
 
   const statusClass = { Lead: 'lead', Contacted: 'contacted', Won: 'won', Lost: 'lost' };
 
-  container.innerHTML = recent.map(c => `
-    <div class="recent-client-item">
-      <img
-        src="${c.image || ''}"
-        alt="${c.name}"
-        class="client-avatar-sm"
-        onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=6c63ff&color=fff&size=40'"
-      >
-      <div class="recent-client-info">
-        <span class="recent-client-name">${c.name}</span>
-        <span class="recent-client-company">${c.company || '—'}</span>
+  container.innerHTML = recent.map(c => {
+    const safeName = escapeHTML(c.name);
+    const safeCompany = escapeHTML(c.company || '—');
+    return `
+      <div class="recent-client-item">
+        <img
+          src="${c.image || ''}"
+          alt="${safeName}"
+          class="client-avatar-sm"
+          onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(safeName)}&background=6c63ff&color=fff&size=40'"
+        >
+        <div class="recent-client-info">
+          <span class="recent-client-name">${safeName}</span>
+          <span class="recent-client-company">${safeCompany}</span>
+        </div>
+        <span class="badge badge-${statusClass[c.status] || 'lead'}">${c.status}</span>
+        <span class="recent-client-date">${new Date(c.createdAt).toLocaleDateString()}</span>
       </div>
-      <span class="badge badge-${statusClass[c.status] || 'lead'}">${c.status}</span>
-      <span class="recent-client-date">${new Date(c.createdAt).toLocaleDateString()}</span>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
-
-// ── Utility ───────────────────────────────────────────────

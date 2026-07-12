@@ -1,30 +1,21 @@
 /**
  * nav.js — Shared navigation for all protected pages (Dashboard, Clients, Profile)
- *
- * Responsibilities (PRD §P0.2, §P0.3):
- *   - Apply saved theme on page load
- *   - Mark current page link as .active
- *   - Toggle Dark/Light theme and save to crm_theme
- *   - Logout: remove crm_session, redirect to index.html
- *
- * Call initNav() on every protected page after DOMContentLoaded.
- */import { getTheme, saveTheme, getSession, clearSession, getCurrentUser } from './storage.js';
-import { showToast } from './toast.js';
+ */
 
-/** Entry point — call once per protected page */
+import { getTheme, saveTheme, getSession, clearSession, getCurrentUser } from './storage.js';
+import { showToast } from './toast.js';
+import { $, $$ } from './utils.js';
+
 export function initNav() {
   applyTheme();
   setActiveNavLink();
   setupThemeToggle();
   setupLogout();
-  setupEasterEgg(); // 🥚 hidden bonus
-  initSessionTimer(); // Live session timer (bonus)
-  renderNavAvatar(); // Sidebar profile photo logout trigger (bonus)
+  setupEasterEgg();
+  initSessionTimer();
+  renderNavAvatar();
 }
 
-// ── Theme ──────────────────────────────────────────────────
-
-/** Reads crm_theme and applies [data-theme] attribute to <html> */
 function applyTheme() {
   const theme = getTheme();
   document.documentElement.setAttribute('data-theme', theme);
@@ -32,32 +23,26 @@ function applyTheme() {
 }
 
 function updateThemeIcon(theme) {
-  const btn = document.getElementById('theme-toggle');
+  const btn = $('#theme-toggle');
   if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
 }
 
 function setupThemeToggle() {
-  const btn = document.getElementById('theme-toggle');
+  const btn = $('#theme-toggle');
   if (!btn) return;
 
   btn.addEventListener('click', () => {
     const current = getTheme();
     const next = current === 'dark' ? 'light' : 'dark';
-    saveTheme(next);                                        // persist to crm_theme
+    saveTheme(next);
     document.documentElement.setAttribute('data-theme', next);
     updateThemeIcon(next);
   });
 }
 
-// ── Active nav link ────────────────────────────────────────
-
-/**
- * Compares the current filename with each .nav-link href,
- * adds .active class to the matching one.
- */
 function setActiveNavLink() {
   const current = window.location.pathname.split('/').pop() || 'index.html';
-  document.querySelectorAll('.nav-link').forEach(link => {
+  $$('.nav-link').forEach(link => {
     const href = link.getAttribute('href') || '';
     if (href === current) {
       link.classList.add('active');
@@ -67,45 +52,30 @@ function setActiveNavLink() {
   });
 }
 
-// ── Logout ─────────────────────────────────────────────────
-
-/**
- * Removes crm_session (NOT crm_users or crm_clients) and
- * redirects to login page. (PRD §P0.2 Logout)
- */
 function setupLogout() {
-  const avatarBtn = document.getElementById('logout-btn');
-  const dropdown  = document.getElementById('logout-dropdown');
-  const actualBtn = document.getElementById('actual-logout-btn');
+  const avatarBtn = $('#logout-btn');
+  const dropdown  = $('#logout-dropdown');
+  const actualBtn = $('#actual-logout-btn');
   if (!avatarBtn || !dropdown || !actualBtn) return;
 
-  // Toggle dropdown on avatar click
   avatarBtn.addEventListener('click', e => {
-    e.stopPropagation(); // prevent window click listener from closing it instantly
+    e.stopPropagation();
     const show = dropdown.style.display === 'none';
     dropdown.style.display = show ? 'block' : 'none';
   });
 
-  // Perform actual logout
   actualBtn.addEventListener('click', () => {
-    clearSession(); // only session is removed
+    clearSession();
     window.location.href = 'index.html';
   });
 
-  // Close dropdown when clicking anywhere else
   window.addEventListener('click', () => {
     dropdown.style.display = 'none';
   });
 }
 
-// ── Easter Egg 🥚 ──────────────────────────────────────────
-
-/**
- * Click the logo 5 times within 2 seconds to trigger the Easter Egg.
- * Fires a party toast and drops CSS confetti across the screen.
- */
 function setupEasterEgg() {
-  const logo = document.getElementById('nav-logo');
+  const logo = $('#nav-logo');
   if (!logo) return;
 
   let clicks = 0;
@@ -143,14 +113,8 @@ function launchConfetti() {
   }
 }
 
-// ── Session Timer ⏱️ ────────────────────────────────────────
-
-/**
- * Tracks the elapsed time since session loginAt.
- * Updates the display every second in the sidebar footer.
- */
 function initSessionTimer() {
-  const el = document.getElementById('session-duration');
+  const el = $('#session-duration');
   if (!el) return;
 
   const session = getSession();
@@ -169,12 +133,9 @@ function initSessionTimer() {
   setInterval(update, 1000);
 }
 
-// ── Sidebar Avatar ─────────────────────────────────────────
-
-/** Renders logged in user photo or initials inside the sidebar footer logout trigger */
 export function renderNavAvatar() {
-  const initialsEl = document.getElementById('nav-avatar-initials');
-  const imgEl      = document.getElementById('nav-avatar-img');
+  const initialsEl = $('#nav-avatar-initials');
+  const imgEl      = $('#nav-avatar-img');
   if (!initialsEl || !imgEl) return;
 
   const user = getCurrentUser();
@@ -188,7 +149,6 @@ export function renderNavAvatar() {
     imgEl.style.display = 'none';
     initialsEl.style.display = 'flex';
 
-    // Initials calculation
     initialsEl.textContent = user.fullName
       .split(' ')
       .map(w => w[0] || '')
@@ -196,7 +156,6 @@ export function renderNavAvatar() {
       .toUpperCase()
       .slice(0, 2);
 
-    // Apply color gradient
     const gradients = [
       'linear-gradient(135deg, #6c63ff, #a78bfa)',
       'linear-gradient(135deg, #ec4899, #f43f5e)',
